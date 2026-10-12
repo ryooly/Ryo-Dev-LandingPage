@@ -1,0 +1,41 @@
+# --- Dependencies ---
+node_modules/
+
+# --- Build output ---
+dist/
+dist-ssr/
+.output/
+.serve/
+
+# --- Deploy targets (Vercel / Cloudflare) ---
+.vercel/
+.wrangler/
+
+# --- TanStack Start / Vinxi caches ---
+.tanstack/
+.vinxi/
+
+# --- Logs & local build artifacts ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+build-log.txt
+
+# --- Environment & secrets (keeps private info OUT of the repo) ---
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+
+# --- Editor / OS noise ---
+.DS_Store
+Thumbs.db
+.idea/
+*.local
+
+# --- Lint / tool caches ---
+.cache/
+.eslintcache

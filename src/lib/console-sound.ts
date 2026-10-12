@@ -1,11 +1,3 @@
-/*
- * Efek suara konsol retro, dibuat secara real-time dengan Tone.js.
- *
- * Tone.js di-import secara dinamis: modul ini sendiri di-import saat SSR,
- * sedangkan library audio (dan AudioContext) baru dimuat pada interaksi
- * pertama pengguna — sekaligus memenuhi kebijakan autoplay browser.
- */
-
 type ToneLib = typeof import("tone");
 type BlipVoice = InstanceType<ToneLib["Synth"]>;
 type ThudVoice = InstanceType<ToneLib["MembraneSynth"]>;
@@ -16,7 +8,6 @@ export type ConsoleSound = "press" | "move" | "start" | "deny" | "open" | "close
 const STORAGE_KEY = "rio-console-sound";
 const MASTER_GAIN = 0.5;
 
-/* Satu langkah bunyi: durasi dan offset dalam detik, velocity 0..1. */
 type Step = {
   voice: "blip" | "thud" | "click";
   note?: string;
@@ -63,8 +54,7 @@ type Rig = {
 
 let rig: Rig | null = null;
 let booting: Promise<Rig | null> | null = null;
-// Referensi modul Tone yang sudah dimuat, agar resume bisa dipanggil sinkron
-// di dalam gestur pengguna (diperlukan browser ketat seperti Safari/iOS).
+
 let toneLib: ToneLib | null = null;
 
 function readMuted(): boolean {
@@ -72,7 +62,6 @@ function readMuted(): boolean {
   try {
     return window.localStorage.getItem(STORAGE_KEY) === "off";
   } catch {
-    // Mode privat / storage diblokir: anggap suara menyala.
     return false;
   }
 }
@@ -92,8 +81,7 @@ async function ensureTone(): Promise<ToneLib | null> {
 async function buildRig(): Promise<Rig | null> {
   const tone = await ensureTone();
   if (!tone) return null;
-  // Tone.start() harus dipanggil dari gestur pengguna; kalau belum boleh,
-  // context tetap suspended dan pemanggilan berikutnya akan mencoba lagi.
+
   await tone.start();
   if (tone.getContext().state !== "running") return null;
 
@@ -127,10 +115,9 @@ function boot(): Promise<Rig | null> {
   if (!booting) {
     booting = buildRig()
       .then((next) => {
-        // null = context masih diblokir browser; biarkan coba lagi nanti.
         if (next) {
           rig = next;
-          // Audio sudah berjalan: lepas listener gestur pembuka.
+
           detachAudioUnlock();
         } else {
           booting = null;
@@ -147,22 +134,12 @@ function boot(): Promise<Rig | null> {
 
 let unlockAttached = false;
 
-/*
- * Dipanggil pada SETIAP gestur awal sampai audio benar-benar berjalan.
- * Resume dipanggil sinkron di dalam gestur (toneLib.start()) agar berhasil di
- * browser ketat (Safari/iOS); boot() lalu menyelesaikan pembuatan suara.
- */
 function onFirstGesture(): void {
   if (muted) return;
   if (toneLib) void toneLib.start();
   void boot();
 }
 
-/**
- * Pasang sekali setelah hidrasi: muat modul Tone.js lebih awal (agar `toneLib`
- * siap dipakai sinkron saat gestur pertama) dan pasang listener pembuka audio
- * yang bertahan sampai context benar-benar berjalan, lalu melepas dirinya.
- */
 export function attachAudioUnlock(): void {
   if (typeof window === "undefined" || unlockAttached) return;
   unlockAttached = true;
@@ -180,7 +157,6 @@ export function detachAudioUnlock(): void {
   window.removeEventListener("touchstart", onFirstGesture);
 }
 
-/** API cadangan: coba buka audio sekarang (mis. dipanggil dari dalam gestur). */
 export function unlockConsoleAudio(): void {
   onFirstGesture();
 }
@@ -193,11 +169,8 @@ export function setMuted(nextMuted: boolean): void {
   muted = nextMuted;
   try {
     window.localStorage.setItem(STORAGE_KEY, nextMuted ? "off" : "on");
-  } catch {
-    // Abaikan: preferensi cukup tersimpan selama sesi.
-  }
+  } catch {}
   if (!nextMuted) {
-    // Unmute biasanya lewat klik (gestur): resume sinkron lalu bangun rig.
     if (toneLib) void toneLib.start();
     void boot();
   }
@@ -207,7 +180,7 @@ export async function playConsoleSound(sound: ConsoleSound): Promise<void> {
   if (muted) return;
   const active = await boot();
   if (!active) return;
-  // Tab di background membuat context dijeda; jangan menumpuk jadwal.
+
   if (active.tone.getContext().state !== "running") {
     booting = null;
     rig = null;

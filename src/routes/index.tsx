@@ -38,21 +38,13 @@ const TOTAL_SCREENS = 6;
 const NOTCH = 30;
 const DRAG_STEP = 24;
 const WHEEL_STEP = 40;
-// Cooldown antar-detent: satu gestur cepat hanya membalik satu halaman, tidak melompat.
+
 const STEP_COOLDOWN = 220;
 const LAST_POSITION = 8;
 const menuItems: MenuItem[] = ["ABOUT ME", "PROJECT", "SKILLS", "EXIT"];
 
-/*
- * Tautan untuk tombol TOUCH ME. Ganti dengan URL asli (mis. profil LinkedIn)
- * begitu tautannya tersedia. Dikelola di satu tempat agar mudah diedit.
- */
 const TOUCH_ME_URL = "https://www.linkedin.com/in/satrio-a-84445a335";
 
-/*
- * Pixel art sprites sebagai grid karakter: "1" = tinta layar, "2" = highlight,
- * "." = kosong. Dirender oleh PixelSprite menjadi rect SVG yang tegas (no blur).
- */
 const swordSprite = [
   "...1...",
   "...1...",
@@ -107,10 +99,8 @@ const powerLogos = [
 
 type Project = { name: string; type: string; href: string };
 
-// Real contact address (matches the EMAIL shown on the Player Profile page).
 const CONTACT_EMAIL = "ardiansyahhsatrio@gmail.com";
 
-// Project repositories — the GitHub mark appears automatically when href points at GitHub.
 const projects: Project[] = [
   {
     name: "SPRINKLE",
@@ -121,8 +111,6 @@ const projects: Project[] = [
 
 type Platform = { name: string; handle: string; href: string; icon: string; src?: string };
 
-// Profile links/handles for each channel shown on the FIND screen.
-// Icons are Simple Icons slugs, tinted to the screen ink via techIcon().
 const platforms: Platform[] = [
   { name: "X", handle: "@ryollie", href: "https://x.com/ryollie?s=11", icon: "x" },
   {
@@ -130,8 +118,7 @@ const platforms: Platform[] = [
     handle: "satrio-a",
     href: "https://www.linkedin.com/in/satrio-a-84445a335?utm_source=share_via&utm_content=profile&utm_medium=member_ios",
     icon: "linkedin",
-    // Simple Icons removed the `linkedin` glyph (404 on the CDN), so use a local copy
-    // of the same path, tinted to the screen ink to match the other icons.
+
     src: "/icons/linkedin.svg",
   },
   {
@@ -161,11 +148,8 @@ type TechBranch = {
   groups: { label: string; items: TechItem[] }[];
 };
 
-// Monochrome ink logos from the Simple Icons CDN, tinted to the screen ink color.
 const techIcon = (slug: string) => `https://cdn.simpleicons.org/${slug}/1d3a2a`;
 
-// GitHub "mark" (octocat) as an inline, currentColor-tinted SVG so it always matches the
-// surrounding pixel text and adds no CDN dependency.
 function GithubMark({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -257,22 +241,6 @@ const techTree: TechBranch[] = [
   },
 ];
 
-/*
- * Backdrop hacker-emoji (PC only): tiga layer emoji yang tersebar merata di grid
- * dengan sedikit jitter. Ada dua jenis gerak, keduanya buatan GSAP:
- * 1. Parallax mengikuti kursor — gsap.quickTo per layer (durasi 1,2s, power3.out),
- *    halus dan "berbobot", dipasang di elemen .emoji-layer terluar.
- * 2. Drift mandiri yang lambat — loop keyframe sine.inOut di wrapper .emoji-drift
- *    (amplitudo & periode beda per layer), jadi background tetap "hidup" saat
- *    kursor diam.
- * Saat kursor berada di dalam konsol, keduanya dibekukan lewat pause(): target
- * kursor diabaikan dan tween ditahan di posisi saat ini (bukan kill() — tween
- * quickTo yang sudah di-kill tidak bisa dipakai lagi, yang membuat parallax mati
- * total setelah kursor keluar konsol). Mobile tidak menampilkan backdrop ini
- * sama sekali (disembunyikan via media query; listener tidak dipasang).
- * Sentuhan visual: tiap layer dapat glow fosfor hijau, tepi viewport dimmask halus,
- * dan sebagian kecil tile adalah "glitch" — berkedip digital sesekali ala CRT.
- */
 const hackerEmojis = [
   "👾",
   "👾",
@@ -290,7 +258,6 @@ const hackerEmojis = [
   "🚩",
 ];
 
-// PRNG deterministik (mulberry32) agar layout sama antara server dan client.
 function mulberry32(seed: number) {
   return () => {
     seed |= 0;
@@ -348,7 +315,7 @@ function buildEmojiLayers(): { depth: number; blur: number; tiles: EmojiTile[] }
           opacity: minOpacity + rng() * (maxOpacity - minOpacity),
           delay: -rng() * 6,
           duration: 3.4 + rng() * 3.2,
-          // ~8% tile menjadi "glitch": berkedip digital sesekali (lihat .is-glitch).
+
           glitch: rng() < 0.08,
         });
       }
@@ -363,12 +330,9 @@ function HackerEmojiBackdrop() {
   const driftRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
-    // Hanya PC dengan kursor presisi; mobile dibiarkan seperti sebelumnya.
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    // Satu setter quickTo per layer (x/y). Durasi 1,2s + power3.out = gerak mulus
-    // berbobot; quickTo meng-cache tween-nya sendiri, jadi tidak ada alokasi per frame.
     const setters = layers.map((layer, index) => {
       const el = layerRefs.current[index];
       if (!el) return null;
@@ -378,9 +342,6 @@ function HackerEmojiBackdrop() {
 
     let inside = false;
 
-    // Drift mandiri: satu loop keyframe per layer (di wrapper .emoji-drift, supaya
-    // tidak bentrok dengan quickTo di layer terluar). Amplitudo naik bersama depth
-    // dan periode beda-beda, jadi kombinasi lantainya tidak pernah terasa berulang.
     const driftPaths = [
       [
         { x: 10, y: -6 },
@@ -415,13 +376,11 @@ function HackerEmojiBackdrop() {
     const freeze = () => {
       for (const setter of setters) {
         if (!setter) continue;
-        // Pause (bukan kill): tween quickTo yang di-kill tidak bisa dibangkitkan lagi,
-        // jadi parallax akan mati permanen setelah kursor pernah masuk konsol. Pause
-        // membekukan field tepat di posisi saat ini dan bisa dilanjutkan kapan saja.
+
         setter.x.tween.pause();
         setter.y.tween.pause();
       }
-      // Drift ikut berhenti — di dalam konsol background tidak boleh bergerak sama sekali.
+
       for (const tween of driftTweens) tween?.pause();
     };
 
@@ -435,7 +394,6 @@ function HackerEmojiBackdrop() {
     };
 
     const onMove = (event: MouseEvent) => {
-      // Di dalam konsol: bekukan field dan abaikan posisi kursor sepenuhnya.
       const target = event.target;
       if (target instanceof Element && target.closest(".console-shell")) {
         if (!inside) {
@@ -460,7 +418,7 @@ function HackerEmojiBackdrop() {
     window.addEventListener("mousemove", onMove, { passive: true });
     return () => {
       window.removeEventListener("mousemove", onMove);
-      // Unmount sungguhan: baru di sini tween boleh dibuang total.
+
       for (const setter of setters) {
         if (!setter) continue;
         setter.x.tween.kill();
@@ -535,11 +493,10 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  // Gerbang arcade: halaman 1 terkunci sampai pemain menekan tombol START.
   const [started, setStarted] = useState(false);
-  // Cermin status audio di UI; default on, lalu disinkronkan dari localStorage saat mount.
+
   const [soundOn, setSoundOn] = useState(true);
-  // Mode malam: hanya menukar latar halaman menjadi hitam; konsol tetap apa adanya.
+
   const [dark, setDark] = useState(false);
   const [denied, setDenied] = useState(false);
   const denyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -548,11 +505,10 @@ function Index() {
   const [bioOpen, setBioOpen] = useState(false);
   const [vault, setVault] = useState(false);
   const [tree, setTree] = useState(false);
-  // Contact button: after the mailto fires we also copy the address and flash a
-  // "COPIED ✓" state, so tapping does something even without a mail app.
+
   const [emailCopied, setEmailCopied] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // TOUCH ME button: brief "light up" flash so every press is visibly confirmed.
+
   const [touchLit, setTouchLit] = useState(false);
   const touchLitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeLang, setActiveLang] = useState<string | null>("PYTHON");
@@ -572,19 +528,13 @@ function Index() {
 
   const locked = !started;
 
-  // Siapkan modul audio saat browser santai, lalu buka AudioContext pada gestur
-  // pertama (pointerdown/keydown) — hover sendiri bukan gestur pembuka browser.
   useEffect(() => {
-    // Sinkronkan toggle UI dengan preferensi yang tersimpan (mungkin masih "off").
     setSoundOn(!isMuted());
-    // Muat Tone.js lebih awal + pasang unlocker yang bertahan sampai context
-    // benar-benar berjalan (resume dipanggil sinkron di dalam gestur), lalu
-    // melepas dirinya sendiri. Ini membuat audio aktif universal di semua browser.
+
     attachAudioUnlock();
     return () => detachAudioUnlock();
   }, []);
 
-  // Sinkronkan mode malam dari penyimpanan (pola yang sama dengan preferensi audio).
   useEffect(() => {
     if (window.localStorage.getItem("console-theme") === "dark") setDark(true);
   }, []);
@@ -597,7 +547,7 @@ function Index() {
     const next = !soundOn;
     setSoundOn(next);
     setMuted(!next);
-    // Saat menyalakan, beri konfirmasi bunyi (matikan tidak menghasilkan suara).
+
     if (next) playConsoleSound("open");
   };
 
@@ -621,7 +571,7 @@ function Index() {
               ? "find"
               : "contact";
   const menuIndex = Math.min(3, Math.max(0, position - 2));
-  // The bio, vault, and tech tree pages live outside the dial — they only open via controls.
+
   const view: Screen | "bio" | "vault" | "tree" = bioOpen
     ? "bio"
     : vault
@@ -630,14 +580,9 @@ function Index() {
         ? "tree"
         : screen;
 
-  // Continue/Back hanya dipakai untuk menelusuri lebih dalam menu utama
-  // (ABOUT ME / PROJECT / SKILLS). Di layar lain keduanya tidak punya fungsi.
-  // Continue aktif hanya saat berada di daftar menu; Back aktif hanya saat
-  // sudah masuk ke salah satu bagian menu (detail/vault/tree/bio).
   const canContinue = view === "about" && !menuDetail;
   const canBack = !!menuDetail || view === "bio" || view === "vault" || view === "tree";
 
-  // Getaran penolakan saat pemain mencoba keluar halaman tanpa START.
   const nudge = () => {
     playConsoleSound("deny");
     setDenied(true);
@@ -714,8 +659,7 @@ function Index() {
     if (!drag) return;
     const now = event.timeStamp || Date.now();
     const offset = drag.baseOffset + (event.clientY - drag.startY);
-    // Satu lompatan detent hanya membalik satu halaman, lalu jangkar dipindah ke
-    // jari dan cooldown berjalan — tarikan cepat tidak melewati halaman tengah.
+
     if (Math.abs(event.clientY - drag.startY) >= DRAG_STEP && now >= drag.lockUntil) {
       const direction = event.clientY > drag.startY ? 1 : -1;
       drag.baseOffset = offset;
@@ -745,29 +689,26 @@ function Index() {
       return;
     }
     const dy = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1);
-    // Ganti arah langsung reset akumulator, jadi tidak perlu "melawan" sisa scroll tadi.
+
     if (wheel.lastDir !== 0 && Math.sign(dy) !== wheel.lastDir) {
       wheel.acc = 0;
       wheel.lockUntil = 0;
     }
     wheel.lastDir = Math.sign(dy);
     wheel.acc += dy;
-    // Ambang rendah (40px) memicu langkah pertama dengan cepat, lalu cooldown
-    // menahan sisanya: satu putaran rodanya hanya membalik satu halaman, tidak melompat.
+
     const now = event.timeStamp || Date.now();
     if (Math.abs(wheel.acc) >= WHEEL_STEP && now >= wheel.lockUntil) {
       const direction = wheel.acc > 0 ? 1 : -1;
       wheel.acc = 0;
       wheel.lockUntil = now + STEP_COOLDOWN;
       move(direction);
-      // Ridge mengikuti posisi target; transisi CSS yang membuat putaran terasa halus.
+
       setRidgeOffset((offset) => {
         const base = Math.round(offset / NOTCH) * NOTCH;
         return Math.min(LAST_POSITION * NOTCH, Math.max(0, base + direction * NOTCH));
       });
     } else if (now < wheel.lockUntil) {
-      // Selama cooldown, timbunan ditahan tepat di ambang supaya ledakan scroll
-      // panjang tidak langsung melepas banyak halaman sekaligus.
       wheel.acc = Math.min(Math.abs(wheel.acc), WHEEL_STEP) * wheel.lastDir;
     }
     if (wheel.snapTimer) clearTimeout(wheel.snapTimer);
@@ -798,7 +739,7 @@ function Index() {
       setTree(true);
       return;
     }
-    // ABOUT ME membuka halaman "About Me" (bio) yang hidup di luar dial.
+
     playConsoleSound("open");
     setVault(false);
     setTree(false);
@@ -807,7 +748,6 @@ function Index() {
 
   return (
     <main className="console-stage">
-      {/* Tuas mode malam di sudut kiri atas latar — sengaja di luar cangkang konsol. */}
       <button
         type="button"
         className={cn("theme-toggle", !dark && "is-off")}
@@ -816,7 +756,6 @@ function Index() {
         aria-label={dark ? "Switch to day mode" : "Switch to night mode"}
       >
         <i className="theme-led" aria-hidden="true" />
-        {/* Glif bulan/matahari: satu-satunya penanda di mobile, teks label terlalu lebar. */}
         <span className="theme-glyph" aria-hidden="true">
           {dark ? "☾" : "☀"}
         </span>
@@ -908,7 +847,6 @@ function Index() {
                     <br />
                     <span className="home-name">
                       Ryo.
-                      {/* Pedang 8-bit ditancapkan ke tanah tepat di samping nama. */}
                       <span className="home-sword" aria-hidden="true">
                         <PixelSprite rows={swordSprite} className="home-sword-blade" />
                         <i className="sword-dust" />
@@ -946,8 +884,6 @@ function Index() {
                       applyPosition(1);
                     }}
                   >
-                    {/* ◄ ► (U+25C4/25BA) dipilih karena selalu teks monokrom; ◀ ▶
-                        (U+25C0/25B6) punya presentasi emoji di Android/iOS. */}
                     <span aria-hidden="true">►</span> {locked ? "PRESS START" : "CONTINUE"}
                   </button>
                 </div>
@@ -1066,7 +1002,7 @@ function Index() {
                               setBioOpen(true);
                               return;
                             }
-                            // EXIT kembali ke halaman pertama.
+
                             goToPosition(0);
                           }}
                         >
@@ -1213,9 +1149,7 @@ function Index() {
                           setEmailCopied(true);
                           if (copyTimer.current) clearTimeout(copyTimer.current);
                           copyTimer.current = setTimeout(() => setEmailCopied(false), 2200);
-                        } catch {
-                          /* clipboard blocked — the mailto link still opens the mail app */
-                        }
+                        } catch {}
                       })();
                     }}
                   >
@@ -1381,22 +1315,11 @@ function Index() {
   );
 }
 
-/*
- * "FIND ME HERE" picker: a smooth, endlessly-looping character-select wheel. All
- * platform cards sit on one vertical strip that glides (CSS-eased) so the chosen one
- * rests in the centre while neighbours above/below fade and scale back. The list is
- * rendered three times and tracked by an absolute index, so when it reaches the end
- * it seamlessly re-centres on the middle copy (transitions are disabled just for that
- * one frame) and keeps spinning — never jumping back through the visible items.
- * Scroll the mouse wheel or click a dimmed neighbour to spin it (same one-notch feel
- * as the dial); it also drifts on its own and pauses while hovered. The centred card
- * is the real link.
- */
 const REEL_REPS = 3;
 
 function FindMeCarousel({ items }: { items: Platform[] }) {
   const count = items.length;
-  // Absolute index into the repeated reel; start at the first item of the middle copy.
+
   const [pos, setPos] = useState(count);
   const [paused, setPaused] = useState(false);
   const [snapping, setSnapping] = useState(false);
@@ -1423,8 +1346,6 @@ function FindMeCarousel({ items }: { items: Platform[] }) {
     [count],
   );
 
-  // Native, non-passive listener so preventDefault works (React's onWheel is passive):
-  // the wheel spins the reel instead of scrolling the page underneath it.
   useEffect(() => {
     const el = reelRef.current;
     if (!el || count <= 1) return;
@@ -1461,7 +1382,6 @@ function FindMeCarousel({ items }: { items: Platform[] }) {
     };
   }, [count, spin]);
 
-  // Continuous idle drift: always steps forward and loops back to the start.
   useEffect(() => {
     if (paused || count <= 1) return;
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
@@ -1469,8 +1389,6 @@ function FindMeCarousel({ items }: { items: Platform[] }) {
     return () => clearInterval(id);
   }, [paused, count, spin]);
 
-  // After the strip finishes a glide onto a duplicate copy, re-centre it instantly on
-  // the middle copy. Because the reel repeats every `count`, this is a visual no-op.
   const handleTransitionEnd = (event: ReactTransitionEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
     if (count <= 1) return;
@@ -1484,7 +1402,6 @@ function FindMeCarousel({ items }: { items: Platform[] }) {
     }
   };
 
-  // Re-enable transitions shortly after the instant re-centre has painted.
   useEffect(() => {
     if (!snapping) return;
     let inner = 0;
@@ -1588,7 +1505,6 @@ function SkillsRadar({ skills }: { skills: Skill[] }) {
           .map((skill) => `${skill.lines.join(" ")} ${skill.value}%`)
           .join(", ")}`}
       >
-        {/* Web rings */}
         {Array.from({ length: RINGS }, (_, ring) => (
           <polygon
             key={ring}
@@ -1596,7 +1512,6 @@ function SkillsRadar({ skills }: { skills: Skill[] }) {
             points={polygonPoints((ring + 1) / RINGS, count)}
           />
         ))}
-        {/* Spokes */}
         {skills.map((skill, index) => {
           const outer = polar(-90 + (360 / count) * index, 1);
           return (
@@ -1610,7 +1525,6 @@ function SkillsRadar({ skills }: { skills: Skill[] }) {
             />
           );
         })}
-        {/* Skill polygon */}
         <polygon
           className="radar-shape"
           points={skills
@@ -1620,7 +1534,6 @@ function SkillsRadar({ skills }: { skills: Skill[] }) {
             })
             .join(" ")}
         />
-        {/* Vertex dots + two-line labels kept inside the viewBox */}
         {skills.map((skill, index) => {
           const angle = -90 + (360 / count) * index;
           const dot = polar(angle, skill.value / 100);
@@ -1628,7 +1541,7 @@ function SkillsRadar({ skills }: { skills: Skill[] }) {
           const cos = Math.cos((angle * Math.PI) / 180);
           const sin = Math.sin((angle * Math.PI) / 180);
           const anchor = Math.abs(cos) < 0.3 ? "middle" : cos > 0 ? "start" : "end";
-          // Shift the stacked lines above/below the anchor point for top/bottom axes.
+
           const firstDy = sin < -0.5 ? -(LINE_HEIGHT + 2) : sin > 0.5 ? 8 : -1;
           return (
             <g key={skill.lines.join(" ")}>
@@ -1648,7 +1561,6 @@ function SkillsRadar({ skills }: { skills: Skill[] }) {
   );
 }
 
-// Sprite pixel-art: tiap sel terisi jadi satu rect SVG, jadi tetap tajam di semua zoom.
 function PixelSprite({
   rows,
   className,

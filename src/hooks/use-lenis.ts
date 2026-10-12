@@ -1,8 +1,6 @@
 import { useEffect } from "react";
 import Lenis from "lenis";
 
-// One shared instance so any component can reach the smoother when it needs to
-// stop or start scrolling (e.g. an open dialog locking the page).
 let lenisInstance: Lenis | undefined;
 
 export function getLenis() {
@@ -10,11 +8,10 @@ export function getLenis() {
 }
 
 type UseLenisOptions = {
-  /** Scroll animation duration in seconds. */
   duration?: number;
-  /** Easing applied to programmatic scrolls (scrollTo, anchor links). */
+
   easing?: (t: number) => number;
-  /** Frame-rate independent smoothing factor, 0..1. Lower = longer glide. */
+
   lerp?: number;
 };
 
@@ -24,9 +21,8 @@ export function useLenis({
   lerp = 0.1,
 }: UseLenisOptions = {}) {
   useEffect(() => {
-    // Honour the OS "reduce motion" setting: leave native instant scrolling alone.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    // Nothing to smooth if the document cannot scroll at all.
+
     if (document.documentElement.scrollHeight <= window.innerHeight) return;
 
     const lenis = new Lenis({
@@ -38,8 +34,8 @@ export function useLenis({
       wheelMultiplier: 1,
       gestureOrientation: "vertical",
       autoResize: true,
-      autoRaf: true, // Lenis drives its own requestAnimationFrame loop
-      anchors: true, // Let in-page #hash links scroll smoothly
+      autoRaf: true,
+      anchors: true,
     });
 
     lenisInstance = lenis;
