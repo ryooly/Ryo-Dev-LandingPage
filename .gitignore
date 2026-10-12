@@ -39,3 +39,4 @@ Thumbs.db
 # --- Lint / tool caches ---
 .cache/
 .eslintcache
+.vercel
