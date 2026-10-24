@@ -1969,6 +1969,25 @@ body.stage-dark {
   .menu-heading h2 {
     font-size: clamp(1.5rem, 7vw, 2.25rem);
   }
+  .system-controls {
+    grid-template-columns: auto auto;
+    justify-content: center;
+    align-items: center;
+    gap: 0.6rem 0.6rem;
+    transform: translateX(-0.7rem);
+  }
+  .system-controls .pill-button {
+    width: clamp(2.6rem, 10vw, 3.4rem);
+    height: 0.78rem;
+    align-self: center;
+  }
+  .system-controls span {
+    align-self: center;
+    font-size: 0.58rem;
+  }
+  .action-wrap button {
+    font-size: clamp(1.25rem, 5vw, 1.7rem);
+  }
 }
 
 @media (max-height: 43rem) {
