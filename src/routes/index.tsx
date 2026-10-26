@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import * as Dialog from "@radix-ui/react-dialog";
 import gsap from "gsap";
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -19,6 +21,7 @@ import {
   playConsoleSound,
   setMuted,
 } from "@/lib/console-sound";
+import { useLenis } from "@/hooks/use-lenis";
 import { cn } from "@/lib/utils";
 
 type Screen = "home" | "profile" | "about" | "work" | "find" | "contact";
@@ -37,7 +40,8 @@ const TOTAL_SCREENS = 6;
 
 const NOTCH = 30;
 const DRAG_STEP = 24;
-const WHEEL_STEP = 40;
+const WHEEL_STEP = 30;
+const WHEEL_IDLE = 90;
 
 const STEP_COOLDOWN = 220;
 const LAST_POSITION = 8;
@@ -83,17 +87,17 @@ const powerLogos = [
   {
     name: "GitHub",
     href: "https://github.com/ryooly",
-    src: "https://cdn.simpleicons.org/github/1d3a2a",
+    src: "https://cdn.simpleicons.org/github/ffffff",
   },
   {
     name: "LeetCode",
     href: "https://leetcode.com/u/ryoleee/",
-    src: "https://cdn.simpleicons.org/leetcode/1d3a2a",
+    src: "https://cdn.simpleicons.org/leetcode/ffffff",
   },
   {
     name: "Codewars",
     href: "https://www.codewars.com/users/Shinyoo0",
-    src: "https://cdn.simpleicons.org/codewars/1d3a2a",
+    src: "https://cdn.simpleicons.org/codewars/ffffff",
   },
 ];
 
@@ -148,12 +152,26 @@ type TechBranch = {
   groups: { label: string; items: TechItem[] }[];
 };
 
-const techIcon = (slug: string) => `https://cdn.simpleicons.org/${slug}/1d3a2a`;
+const techIcon = (slug: string) => `https://cdn.simpleicons.org/${slug}/ffffff`;
 
 function GithubMark({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+    </svg>
+  );
+}
+
+function ArrowUpRightMark({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="M4 12 12 4M6 4h6v6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2.5}
+        strokeLinecap="square"
+      />
     </svg>
   );
 }
@@ -278,6 +296,7 @@ type EmojiTile = {
   delay: number;
   duration: number;
   glitch: boolean;
+  bob: boolean;
 };
 
 type EmojiLayerSpec = {
@@ -286,17 +305,16 @@ type EmojiLayerSpec = {
   size: [number, number];
   opacity: [number, number];
   depth: number;
-  blur: number;
   jitter: number;
 };
 
 const emojiLayerSpecs: EmojiLayerSpec[] = [
-  { cols: 9, rows: 6, size: [12, 18], opacity: [0.12, 0.22], depth: 14, blur: 1.1, jitter: 0.62 },
-  { cols: 7, rows: 5, size: [18, 27], opacity: [0.2, 0.36], depth: 32, blur: 0.3, jitter: 0.58 },
-  { cols: 5, rows: 4, size: [27, 42], opacity: [0.32, 0.52], depth: 56, blur: 0, jitter: 0.52 },
+  { cols: 9, rows: 6, size: [12, 18], opacity: [0.11, 0.2], depth: 14, jitter: 0.62 },
+  { cols: 7, rows: 5, size: [18, 27], opacity: [0.18, 0.32], depth: 32, jitter: 0.58 },
+  { cols: 5, rows: 4, size: [27, 42], opacity: [0.28, 0.46], depth: 56, jitter: 0.52 },
 ];
 
-function buildEmojiLayers(): { depth: number; blur: number; tiles: EmojiTile[] }[] {
+function buildEmojiLayers(): { depth: number; tiles: EmojiTile[] }[] {
   const rng = mulberry32(1337);
   return emojiLayerSpecs.map((spec) => {
     const cellW = 100 / spec.cols;
@@ -306,6 +324,7 @@ function buildEmojiLayers(): { depth: number; blur: number; tiles: EmojiTile[] }
       for (let col = 0; col < spec.cols; col += 1) {
         const [minSize, maxSize] = spec.size;
         const [minOpacity, maxOpacity] = spec.opacity;
+        const glitch = rng() < 0.08;
         tiles.push({
           char: hackerEmojis[Math.floor(rng() * hackerEmojis.length)] ?? "👾",
           left: (col + 0.5 + (rng() - 0.5) * spec.jitter) * cellW,
@@ -315,19 +334,19 @@ function buildEmojiLayers(): { depth: number; blur: number; tiles: EmojiTile[] }
           opacity: minOpacity + rng() * (maxOpacity - minOpacity),
           delay: -rng() * 6,
           duration: 3.4 + rng() * 3.2,
-
-          glitch: rng() < 0.08,
+          glitch,
+          bob: !glitch && rng() < 0.34,
         });
       }
     }
-    return { depth: spec.depth, blur: spec.blur, tiles };
+    return { depth: spec.depth, tiles };
   });
 }
 
-function HackerEmojiBackdrop() {
+const HackerEmojiBackdrop = memo(function HackerEmojiBackdrop() {
   const layers = useMemo(buildEmojiLayers, []);
   const layerRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const driftRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
@@ -340,70 +359,27 @@ function HackerEmojiBackdrop() {
       return { depth: layer.depth, x: gsap.quickTo(el, "x", vars), y: gsap.quickTo(el, "y", vars) };
     });
 
-    let inside = false;
-
-    const driftPaths = [
-      [
-        { x: 10, y: -6 },
-        { x: -8, y: 8 },
-        { x: 6, y: 4 },
-        { x: 0, y: 0 },
-      ],
-      [
-        { x: -16, y: 9 },
-        { x: 13, y: -12 },
-        { x: -6, y: 7 },
-        { x: 0, y: 0 },
-      ],
-      [
-        { x: 26, y: -15 },
-        { x: -20, y: 17 },
-        { x: 11, y: 9 },
-        { x: 0, y: 0 },
-      ],
-    ];
-    const driftTweens = driftRefs.current.map((el, index) => {
-      const path = driftPaths[index % driftPaths.length];
-      if (!el || !path) return null;
-      return gsap.to(el, {
-        keyframes: path,
-        duration: 26 - index * 5,
-        ease: "sine.inOut",
-        repeat: -1,
-      });
-    });
+    let frozen = false;
 
     const freeze = () => {
-      for (const setter of setters) {
-        if (!setter) continue;
-
-        setter.x.tween.pause();
-        setter.y.tween.pause();
-      }
-
-      for (const tween of driftTweens) tween?.pause();
+      backdropRef.current?.setAttribute("data-frozen", "");
     };
 
     const unfreeze = () => {
-      for (const setter of setters) {
-        if (!setter) continue;
-        setter.x.tween.resume();
-        setter.y.tween.resume();
-      }
-      for (const tween of driftTweens) tween?.resume();
+      backdropRef.current?.removeAttribute("data-frozen");
     };
 
     const onMove = (event: MouseEvent) => {
       const target = event.target;
       if (target instanceof Element && target.closest(".console-shell")) {
-        if (!inside) {
-          inside = true;
+        if (!frozen) {
+          frozen = true;
           freeze();
         }
         return;
       }
-      if (inside) {
-        inside = false;
+      if (frozen) {
+        frozen = false;
         unfreeze();
       }
       const px = (event.clientX / window.innerWidth - 0.5) * 2;
@@ -424,12 +400,11 @@ function HackerEmojiBackdrop() {
         setter.x.tween.kill();
         setter.y.tween.kill();
       }
-      for (const tween of driftTweens) tween?.kill();
     };
   }, [layers]);
 
   return (
-    <div className="emoji-backdrop" aria-hidden="true">
+    <div className="emoji-backdrop" aria-hidden="true" ref={backdropRef}>
       {layers.map((layer, index) => (
         <div
           key={index}
@@ -437,18 +412,12 @@ function HackerEmojiBackdrop() {
           ref={(el) => {
             layerRefs.current[index] = el;
           }}
-          style={layer.blur ? { filter: `blur(${layer.blur}px)` } : undefined}
         >
-          <div
-            className="emoji-drift"
-            ref={(el) => {
-              driftRefs.current[index] = el;
-            }}
-          >
+          <div className="emoji-drift">
             {layer.tiles.map((tile, tileIndex) => (
               <span
                 key={tileIndex}
-                className={cn("emoji-tile", tile.glitch && "is-glitch")}
+                className={cn("emoji-tile", tile.glitch ? "is-glitch" : tile.bob && "is-bob")}
                 style={
                   {
                     left: `${tile.left}%`,
@@ -469,7 +438,7 @@ function HackerEmojiBackdrop() {
       ))}
     </div>
   );
-}
+});
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -506,6 +475,13 @@ function Index() {
   const [vault, setVault] = useState(false);
   const [tree, setTree] = useState(false);
 
+  const [screenNode, setScreenNode] = useState<HTMLDivElement | null>(null);
+  const [panelNode, setPanelNode] = useState<HTMLDivElement | null>(null);
+  const [stageNode, setStageNode] = useState<HTMLDivElement | null>(null);
+
+  useLenis({ wrapper: screenNode, lerp: 0.075 });
+  useLenis({ wrapper: panelNode, lerp: 0.082 });
+
   const [emailCopied, setEmailCopied] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -513,20 +489,37 @@ function Index() {
   const touchLitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeLang, setActiveLang] = useState<string | null>("PYTHON");
   const [ridgeOffset, setRidgeOffset] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const dragRef = useRef<{
-    startY: number;
-    baseOffset: number;
-    lockUntil: number;
-  } | null>(null);
+  const dragRef = useRef<{ startY: number; lockUntil: number } | null>(null);
+  const keyRef = useRef(0);
   const wheelRef = useRef<{
     acc: number;
     lastDir: number;
     lockUntil: number;
-    snapTimer: ReturnType<typeof setTimeout> | null;
-  }>({ acc: 0, lastDir: 0, lockUntil: 0, snapTimer: null });
+    lastAt: number;
+    stepped: boolean;
+  }>({ acc: 0, lastDir: 0, lockUntil: 0, lastAt: 0, stepped: false });
+  const dialRef = useRef<HTMLDivElement | null>(null);
 
   const locked = !started;
+
+  useEffect(() => {
+    const dial = dialRef.current;
+    if (!dial) return;
+
+    const blockNativeScroll = (event: WheelEvent) => event.preventDefault();
+    dial.addEventListener("wheel", blockNativeScroll, { passive: false });
+    return () => dial.removeEventListener("wheel", blockNativeScroll);
+  }, []);
+
+  useEffect(() => {
+    const blockClipboard = (event: ClipboardEvent) => event.preventDefault();
+    document.addEventListener("copy", blockClipboard);
+    document.addEventListener("cut", blockClipboard);
+    return () => {
+      document.removeEventListener("copy", blockClipboard);
+      document.removeEventListener("cut", blockClipboard);
+    };
+  }, []);
 
   useEffect(() => {
     setSoundOn(!isMuted());
@@ -572,16 +565,18 @@ function Index() {
               : "contact";
   const menuIndex = Math.min(3, Math.max(0, position - 2));
 
-  const view: Screen | "bio" | "vault" | "tree" = bioOpen
+  const panel: "bio" | "vault" | "tree" | null = bioOpen
     ? "bio"
     : vault
       ? "vault"
       : tree
         ? "tree"
-        : screen;
+        : null;
 
-  const canContinue = view === "about" && !menuDetail;
-  const canBack = !!menuDetail || view === "bio" || view === "vault" || view === "tree";
+  const view: Screen = screen;
+
+  const canContinue = view === "about" && !menuDetail && panel === null;
+  const canBack = !!menuDetail || panel !== null;
 
   const nudge = () => {
     playConsoleSound("deny");
@@ -638,10 +633,17 @@ function Index() {
       return;
     }
     setRidgeOffset((offset) => {
-      const snapped = Math.round(offset / NOTCH) * NOTCH;
-      return snapped + direction * NOTCH;
+      const snapped = Math.round(offset / NOTCH) * NOTCH + direction * NOTCH;
+      return Math.min(LAST_POSITION * NOTCH, Math.max(0, snapped));
     });
     move(direction);
+  };
+
+  const keyTurn = (direction: 1 | -1) => {
+    const now = performance.now();
+    if (now - keyRef.current < STEP_COOLDOWN) return;
+    keyRef.current = now;
+    turnDial(direction);
   };
 
   const startDial = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -650,72 +652,75 @@ function Index() {
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
-    setDragging(true);
-    dragRef.current = { startY: event.clientY, baseOffset: ridgeOffset, lockUntil: 0 };
+    dragRef.current = { startY: event.clientY, lockUntil: 0 };
   };
 
   const dragDial = (event: ReactPointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag) return;
-    const now = event.timeStamp || Date.now();
-    const offset = drag.baseOffset + (event.clientY - drag.startY);
 
-    if (Math.abs(event.clientY - drag.startY) >= DRAG_STEP && now >= drag.lockUntil) {
-      const direction = event.clientY > drag.startY ? 1 : -1;
-      drag.baseOffset = offset;
+    const now = event.timeStamp || Date.now();
+    if (now < drag.lockUntil) {
       drag.startY = event.clientY;
-      drag.lockUntil = now + STEP_COOLDOWN;
-      move(direction as 1 | -1);
-      setRidgeOffset(Math.min(LAST_POSITION * NOTCH, Math.max(0, offset)));
-    } else {
-      setRidgeOffset(offset);
+      return;
     }
+
+    const travel = event.clientY - drag.startY;
+    if (Math.abs(travel) < DRAG_STEP) return;
+
+    drag.startY = event.clientY;
+    drag.lockUntil = now + STEP_COOLDOWN;
+    turnDial(travel > 0 ? 1 : -1);
   };
 
   const finishDial = () => {
     if (!dragRef.current) return;
     dragRef.current = null;
-    setDragging(false);
     setRidgeOffset((offset) => Math.round(offset / NOTCH) * NOTCH);
   };
 
   const wheelDial = (event: ReactWheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
     const wheel = wheelRef.current;
     if (locked) {
       wheel.acc = 0;
       wheel.lastDir = 0;
+      wheel.stepped = false;
       nudge();
       return;
     }
-    const dy = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1);
 
-    if (wheel.lastDir !== 0 && Math.sign(dy) !== wheel.lastDir) {
-      wheel.acc = 0;
-      wheel.lockUntil = 0;
-    }
-    wheel.lastDir = Math.sign(dy);
-    wheel.acc += dy;
+    const dy = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1);
+    if (dy === 0) return;
 
     const now = event.timeStamp || Date.now();
-    if (Math.abs(wheel.acc) >= WHEEL_STEP && now >= wheel.lockUntil) {
-      const direction = wheel.acc > 0 ? 1 : -1;
-      wheel.acc = 0;
-      wheel.lockUntil = now + STEP_COOLDOWN;
-      move(direction);
+    const direction = dy > 0 ? 1 : -1;
 
-      setRidgeOffset((offset) => {
-        const base = Math.round(offset / NOTCH) * NOTCH;
-        return Math.min(LAST_POSITION * NOTCH, Math.max(0, base + direction * NOTCH));
-      });
-    } else if (now < wheel.lockUntil) {
-      wheel.acc = Math.min(Math.abs(wheel.acc), WHEEL_STEP) * wheel.lastDir;
-    }
-    if (wheel.snapTimer) clearTimeout(wheel.snapTimer);
-    wheel.snapTimer = setTimeout(() => {
+    if (now - wheel.lastAt > WHEEL_IDLE) {
       wheel.acc = 0;
       wheel.lastDir = 0;
-    }, 140);
+      wheel.stepped = false;
+    }
+    wheel.lastAt = now;
+
+    if (wheel.lastDir !== 0 && direction !== wheel.lastDir) {
+      wheel.acc = 0;
+      wheel.stepped = false;
+      wheel.lockUntil = 0;
+    }
+    wheel.lastDir = direction;
+
+    if (wheel.stepped || now < wheel.lockUntil) {
+      wheel.acc = 0;
+      return;
+    }
+
+    wheel.acc += dy;
+    if (Math.abs(wheel.acc) < WHEEL_STEP) return;
+
+    wheel.acc = 0;
+    wheel.stepped = true;
+    wheel.lockUntil = now + STEP_COOLDOWN;
+    turnDial(direction);
   };
 
   const selectMenuItem = () => {
@@ -803,360 +808,417 @@ function Index() {
               </span>
             </div>
 
-            <div className="screen-content" key={view}>
-              {view === "bio" && (
-                <div className="bio-screen">
-                  <p className="screen-kicker">SUBJECT: RIO // BACKSTORY</p>
-                  <h2>
-                    About
-                    <br />
-                    Me.
-                  </h2>
-                  <p className="screen-copy bio-copy">
-                    I combine <strong>software engineering and AI</strong> to build products that go
-                    beyond traditional applications.
-                  </p>
-                  <p className="bio-copy">
-                    From reliable backend systems to AI-powered automation and agentic workflows, I
-                    build software that can <strong>think, adapt, and act</strong>.
-                  </p>
-                  <div className="bio-focus">
-                    <p className="bio-focus-label">FOCUS // LOADOUT</p>
-                    <ul className="bio-chips">
-                      <li>AI × Software</li>
-                      <li>Backend Systems</li>
-                      <li>Agentic Workflows</li>
-                      <li>Automation</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-              {view === "home" && (
-                <div className="home-screen">
-                  <div className="home-sparks" aria-hidden="true">
-                    <i />
-                    <i />
-                    <i />
-                    <i />
-                  </div>
-                  <p className="screen-kicker">
-                    {locked ? "PLAYER_ONE // STANDBY" : "PLAYER_ONE // IDENTIFIED"}
-                  </p>
-                  <h1 className="home-title">
-                    Hi, I’m
-                    <br />
-                    <span className="home-name">
-                      Ryo.
-                      <span className="home-sword" aria-hidden="true">
-                        <PixelSprite rows={swordSprite} className="home-sword-blade" />
-                        <i className="sword-dust" />
-                      </span>
-                    </span>
-                  </h1>
-                  <p className="screen-copy home-copy">
-                    <span className="home-typed">
-                      Claude Code, Codex, and Antigravity are useless without me.
-                    </span>
-                    <span className="home-caret" aria-hidden="true">
-                      ▮
-                    </span>
-                  </p>
-                  <div className="home-vitals" aria-hidden="true">
-                    <span className="vitals-label">HP</span>
-                    {Array.from({ length: 5 }, (_, index) => (
-                      <PixelSprite
-                        key={index}
-                        rows={index < 4 ? heartSprite : heartOutline}
-                        className="vitals-heart"
-                      />
-                    ))}
-                    <span className="vitals-lv">LV.26</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="press-start"
-                    onClick={() => {
-                      if (locked) {
-                        startGame();
-                        return;
-                      }
-                      playConsoleSound("move");
-                      applyPosition(1);
-                    }}
-                  >
-                    <span aria-hidden="true">►</span> {locked ? "PRESS START" : "CONTINUE"}
-                  </button>
-                </div>
-              )}
-              {view === "profile" && (
-                <div className="profile-screen">
-                  <p className="screen-kicker">PLAYER PROFILE // DATA CARD</p>
-                  <h2>
-                    Rio&apos;s
-                    <br />
-                    Dossier.
-                  </h2>
-                  <div className="profile-body">
-                    <div className="character-box" aria-label="Character portrait">
-                      <span className="character-sprite" aria-hidden="true">
-                        👾
-                      </span>
+            <div
+              ref={(node) => setStageNode(node)}
+              className="screen-body"
+              data-panel={panel ?? undefined}
+            >
+              <div ref={(node) => setScreenNode(node)} className="screen-content" key={view}>
+                {view === "home" && (
+                  <div className="home-screen">
+                    <div className="home-sparks" aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                      <i />
                     </div>
-                    <dl className="stat-list">
-                      <div>
-                        <dt>NAME</dt>
-                        <dd>Satrio (Ryo)</dd>
-                      </div>
-                      <div>
-                        <dt>EMAIL</dt>
-                        <dd>ardiansyahhsatrio@gmail.com</dd>
-                      </div>
-                      <div>
-                        <dt>REGION</dt>
-                        <dd>Southeast Asia</dd>
-                      </div>
-                      <div>
-                        <dt>LANGUAGES</dt>
-                        <dd>English · Indonesian</dd>
-                      </div>
-                      <div>
-                        <dt>STRENGTHS</dt>
-                        <dd>Backend &amp; AI Integration</dd>
-                      </div>
-                      <div>
-                        <dt>POWER</dt>
-                        <dd className="power-logos">
-                          {powerLogos.map((logo) => (
-                            <a
-                              key={logo.name}
-                              href={logo.href}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                              aria-label={`${logo.name} profile`}
-                              title={logo.name}
-                              onClick={() => playConsoleSound("press")}
-                            >
-                              <img src={logo.src} alt="" width={24} height={24} />
-                            </a>
-                          ))}
-                        </dd>
-                      </div>
-                    </dl>
+                    <p className="screen-kicker">
+                      {locked ? "PLAYER_ONE // STANDBY" : "PLAYER_ONE // IDENTIFIED"}
+                    </p>
+                    <h1 className="home-title">
+                      Hi, I’m
+                      <br />
+                      <span className="home-name">
+                        Ryo.
+                        <span className="home-sword" aria-hidden="true">
+                          <PixelSprite rows={swordSprite} className="home-sword-blade" />
+                          <i className="sword-dust" />
+                        </span>
+                      </span>
+                    </h1>
+                    <p className="screen-copy home-copy">
+                      <span className="home-typed">
+                        Claude Code, Codex, and Antigravity are useless without me.
+                      </span>
+                      <span className="home-caret" aria-hidden="true">
+                        ▮
+                      </span>
+                    </p>
+                    <div className="home-vitals" aria-hidden="true">
+                      <span className="vitals-label">HP</span>
+                      {Array.from({ length: 5 }, (_, index) => (
+                        <PixelSprite
+                          key={index}
+                          rows={index < 4 ? heartSprite : heartOutline}
+                          className="vitals-heart"
+                        />
+                      ))}
+                      <span className="vitals-lv">LV.26</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="press-start"
+                      onClick={() => {
+                        if (locked) {
+                          startGame();
+                          return;
+                        }
+                        playConsoleSound("move");
+                        applyPosition(1);
+                      }}
+                    >
+                      <span aria-hidden="true">►</span> {locked ? "PRESS START" : "CONTINUE"}
+                    </button>
                   </div>
-                </div>
-              )}
-              {view === "about" &&
-                (menuDetail ? (
-                  <div className="menu-detail">
-                    <p className="screen-kicker">{menuDetail}</p>
-                    {menuDetail === "ABOUT ME" && (
-                      <>
+                )}
+                {view === "profile" && (
+                  <div className="profile-screen">
+                    <p className="screen-kicker">PLAYER PROFILE // DATA CARD</p>
+                    <h2>
+                      Rio&apos;s
+                      <br />
+                      Dossier.
+                    </h2>
+                    <div className="profile-body">
+                      <div className="character-box" aria-label="Character portrait">
+                        <span className="character-sprite" aria-hidden="true">
+                          👾
+                        </span>
+                      </div>
+                      <dl className="stat-list">
+                        <div>
+                          <dt>NAME</dt>
+                          <dd>Satrio (Ryo)</dd>
+                        </div>
+                        <div>
+                          <dt>EMAIL</dt>
+                          <dd>ardiansyahhsatrio@gmail.com</dd>
+                        </div>
+                        <div>
+                          <dt>REGION</dt>
+                          <dd>Southeast Asia</dd>
+                        </div>
+                        <div>
+                          <dt>LANGUAGES</dt>
+                          <dd>English · Indonesian</dd>
+                        </div>
+                        <div>
+                          <dt>STRENGTHS</dt>
+                          <dd>Backend &amp; AI Integration</dd>
+                        </div>
+                        <div>
+                          <dt>POWER</dt>
+                          <dd className="power-logos">
+                            {powerLogos.map((logo) => (
+                              <a
+                                key={logo.name}
+                                href={logo.href}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                aria-label={`${logo.name} profile`}
+                                title={logo.name}
+                                onClick={() => playConsoleSound("press")}
+                              >
+                                <img src={logo.src} alt="" width={24} height={24} />
+                              </a>
+                            ))}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                )}
+                {view === "about" &&
+                  (menuDetail ? (
+                    <div className="menu-detail">
+                      <p className="screen-kicker">{menuDetail}</p>
+                      {menuDetail === "ABOUT ME" && (
+                        <>
+                          <h2>
+                            Curious by
+                            <br />
+                            default.
+                          </h2>
+                          <p className="screen-copy">
+                            Designer and developer turning ideas into clear, memorable products.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="menu-screen">
+                      <div className="menu-heading">
+                        <p className="screen-kicker">PLAYER_MENU // 04 MODULES</p>
                         <h2>
-                          Curious by
+                          Choose your
                           <br />
-                          default.
+                          next move.
                         </h2>
-                        <p className="screen-copy">
-                          Designer and developer turning ideas into clear, memorable products.
-                        </p>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div className="menu-screen">
-                    <div className="menu-heading">
-                      <p className="screen-kicker">PLAYER_MENU // 04 MODULES</p>
-                      <h2>
-                        Choose your
-                        <br />
-                        next move.
-                      </h2>
-                    </div>
-                    <div className="screen-menu" role="listbox" aria-label="Portfolio menu">
-                      {menuItems.map((item, index) => (
-                        <button
-                          key={item}
-                          className={index === menuIndex ? "is-active" : undefined}
-                          type="button"
-                          role="option"
-                          aria-selected={index === menuIndex}
-                          tabIndex={index === menuIndex ? 0 : -1}
-                          onClick={() => {
-                            if (item === "PROJECT") {
-                              playConsoleSound("open");
-                              setBioOpen(false);
-                              setTree(false);
-                              setVault(true);
-                              return;
-                            }
-                            if (item === "SKILLS") {
-                              playConsoleSound("open");
-                              setBioOpen(false);
-                              setVault(false);
-                              setTree(true);
-                              return;
-                            }
-                            if (item === "ABOUT ME") {
-                              playConsoleSound("open");
-                              goToPosition(2);
-                              setBioOpen(true);
-                              return;
-                            }
+                      </div>
+                      <div className="screen-menu" role="listbox" aria-label="Portfolio menu">
+                        {menuItems.map((item, index) => (
+                          <button
+                            key={item}
+                            className={index === menuIndex ? "is-active" : undefined}
+                            type="button"
+                            role="option"
+                            aria-selected={index === menuIndex}
+                            tabIndex={index === menuIndex ? 0 : -1}
+                            onClick={() => {
+                              if (item === "PROJECT") {
+                                playConsoleSound("open");
+                                setBioOpen(false);
+                                setTree(false);
+                                setVault(true);
+                                return;
+                              }
+                              if (item === "SKILLS") {
+                                playConsoleSound("open");
+                                setBioOpen(false);
+                                setVault(false);
+                                setTree(true);
+                                return;
+                              }
+                              if (item === "ABOUT ME") {
+                                playConsoleSound("open");
+                                goToPosition(2);
+                                setBioOpen(true);
+                                return;
+                              }
 
-                            goToPosition(0);
-                          }}
-                        >
-                          <span className="menu-marker" aria-hidden="true" />
-                          <strong>{item}</strong>
-                          <i aria-hidden="true">{String(index + 1).padStart(2, "0")}</i>
-                        </button>
-                      ))}
+                              goToPosition(0);
+                            }}
+                          >
+                            <span className="menu-marker" aria-hidden="true" />
+                            <strong>{item}</strong>
+                            <i aria-hidden="true">{String(index + 1).padStart(2, "0")}</i>
+                          </button>
+                        ))}
+                      </div>
                     </div>
+                  ))}
+                {view === "work" && (
+                  <div className="skills-screen">
+                    <p className="screen-kicker">STATUS READING // ABILITY MATRIX</p>
+                    <h2>
+                      RIO&apos;s
+                      <br />
+                      Skills.
+                    </h2>
+                    <SkillsRadar skills={skills} />
                   </div>
-                ))}
-              {view === "work" && (
-                <div className="skills-screen">
-                  <p className="screen-kicker">STATUS READING // ABILITY MATRIX</p>
-                  <h2>
-                    RIO&apos;s
-                    <br />
-                    Skills.
-                  </h2>
-                  <SkillsRadar skills={skills} />
-                </div>
-              )}
-              {view === "tree" && (
-                <div className="techtree-screen">
-                  <p className="screen-kicker">SKILL TREE // TECH STACK.SYS</p>
-                  <h2>
-                    Tech
-                    <br />
-                    Tree.
-                  </h2>
-                  <div className="techtree-body">
-                    <div className="tech-root">RIO.DEV</div>
-                    <div className="tech-trunk" aria-hidden="true" />
-                    <div className="tech-langs" role="tablist" aria-label="Skill languages">
-                      {techTree.map((branch) => (
-                        <button
-                          key={branch.language}
-                          type="button"
-                          role="tab"
-                          aria-selected={activeLang === branch.language}
-                          className={cn("tech-lang", activeLang === branch.language && "is-active")}
-                          onClick={() => {
-                            playConsoleSound("press");
-                            setActiveLang((current) =>
-                              current === branch.language ? null : branch.language,
-                            );
-                          }}
-                        >
-                          <img src={techIcon(branch.icon)} alt="" width={20} height={20} />
-                          <span>{branch.language}</span>
-                        </button>
-                      ))}
-                    </div>
-                    {techTree
-                      .filter((branch) => branch.language === activeLang)
-                      .map((branch) => (
-                        <div key={branch.language} className="tech-branch" role="tabpanel">
-                          <div className="tech-stub" aria-hidden="true" />
-                          {branch.groups.map((group) => (
-                            <div key={group.label} className="tech-group">
-                              <span className="tech-group-label">{group.label}</span>
-                              <div className="tech-chips">
-                                {group.items.map((item) => (
-                                  <span key={item.name} className="tech-chip">
-                                    <img src={techIcon(item.icon)} alt="" width={14} height={14} />
-                                    {item.name}
-                                  </span>
+                )}
+                {view === "find" && (
+                  <div className="find-screen">
+                    <p className="screen-kicker">TRACK ME DOWN // {platforms.length} CHANNELS</p>
+                    <h2>
+                      Find Me
+                      <br />
+                      Here.
+                    </h2>
+                    <FindMeCarousel items={platforms} />
+                  </div>
+                )}
+                {view === "contact" && (
+                  <div className="contact-screen">
+                    <p className="screen-kicker">OPEN CHANNEL</p>
+                    <h2>
+                      Let’s make
+                      <br />
+                      something.
+                    </h2>
+                    <a
+                      className={cn("contact-link", emailCopied && "is-copied")}
+                      href={`mailto:${CONTACT_EMAIL}?subject=Let%27s%20build%20something`}
+                      aria-label={`Email ${CONTACT_EMAIL}. Opens your mail app and copies the address.`}
+                      onClick={() => {
+                        playConsoleSound("press");
+                        void (async () => {
+                          try {
+                            await navigator.clipboard.writeText(CONTACT_EMAIL);
+                            setEmailCopied(true);
+                            if (copyTimer.current) clearTimeout(copyTimer.current);
+                            copyTimer.current = setTimeout(() => setEmailCopied(false), 2200);
+                          } catch {}
+                        })();
+                      }}
+                    >
+                      {emailCopied ? (
+                        "EMAIL COPIED ✓"
+                      ) : (
+                        <>
+                          ARDIANSYAHSATRIO@GMAIL.COM
+                          <ArrowUpRightMark className="contact-link-icon" />
+                        </>
+                      )}
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <Dialog.Root
+                open={panel !== null}
+                modal={false}
+                onOpenChange={(open) => {
+                  if (open) return;
+                  setBioOpen(false);
+                  setVault(false);
+                  setTree(false);
+                }}
+              >
+                <Dialog.Portal container={stageNode}>
+                  <Dialog.Content
+                    ref={(node) => setPanelNode(node)}
+                    className="screen-panel"
+                    aria-describedby={undefined}
+                    onInteractOutside={(event) => event.preventDefault()}
+                  >
+                    {panel === "bio" && (
+                      <div className="bio-screen">
+                        <p className="screen-kicker">SUBJECT: RIO // BACKSTORY</p>
+                        <h2>
+                          About
+                          <br />
+                          Me.
+                        </h2>
+                        <p className="screen-copy bio-copy">
+                          I combine <strong>software engineering and AI</strong> to build products
+                          that go beyond traditional applications.
+                        </p>
+                        <p className="bio-copy">
+                          From reliable backend systems to AI-powered automation and agentic
+                          workflows, I build software that can{" "}
+                          <strong>think, adapt, and act</strong>.
+                        </p>
+                        <div className="bio-focus">
+                          <p className="bio-focus-label">FOCUS // LOADOUT</p>
+                          <ul className="bio-chips">
+                            <li>AI × Software</li>
+                            <li>Backend Systems</li>
+                            <li>Agentic Workflows</li>
+                            <li>Automation</li>
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {panel === "tree" && (
+                      <div className="techtree-screen">
+                        <p className="screen-kicker">SKILL TREE // TECH STACK.SYS</p>
+                        <h2>
+                          Tech
+                          <br />
+                          Tree.
+                        </h2>
+                        <div className="techtree-body">
+                          <div className="tech-root">RIO.DEV</div>
+                          <div className="tech-trunk" aria-hidden="true" />
+                          <div className="tech-langs" role="tablist" aria-label="Skill languages">
+                            {techTree.map((branch) => (
+                              <button
+                                key={branch.language}
+                                type="button"
+                                role="tab"
+                                aria-selected={activeLang === branch.language}
+                                className={cn(
+                                  "tech-lang",
+                                  activeLang === branch.language && "is-active",
+                                )}
+                                onClick={() => {
+                                  playConsoleSound("press");
+                                  setActiveLang((current) =>
+                                    current === branch.language ? null : branch.language,
+                                  );
+                                }}
+                              >
+                                <img src={techIcon(branch.icon)} alt="" width={20} height={20} />
+                                <span>{branch.language}</span>
+                              </button>
+                            ))}
+                          </div>
+                          {techTree
+                            .filter((branch) => branch.language === activeLang)
+                            .map((branch) => (
+                              <div key={branch.language} className="tech-branch" role="tabpanel">
+                                <div className="tech-stub" aria-hidden="true" />
+                                {branch.groups.map((group) => (
+                                  <div key={group.label} className="tech-group">
+                                    <span className="tech-group-label">{group.label}</span>
+                                    <div className="tech-chips">
+                                      {group.items.map((item) => (
+                                        <span key={item.name} className="tech-chip">
+                                          <img
+                                            src={techIcon(item.icon)}
+                                            alt=""
+                                            width={14}
+                                            height={14}
+                                          />
+                                          {item.name}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
                                 ))}
                               </div>
-                            </div>
-                          ))}
+                            ))}
                         </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-              {view === "vault" && (
-                <div className="project-screen">
-                  <p className="screen-kicker">INVENTORY // QUEST ITEMS {projects.length}/8</p>
-                  <h2>
-                    Project
-                    <br />
-                    Vault.
-                  </h2>
-                  <div className="inventory-grid" role="list" aria-label="Project inventory">
-                    {projects.map((project, index) => {
-                      const isGithub = /github\.com/i.test(project.href);
-                      return (
-                        <a
-                          key={project.name}
-                          role="listitem"
-                          className="inventory-slot"
-                          href={project.href}
-                          target="_blank"
-                          rel="noreferrer noopener"
-                          aria-label={`Open ${project.name} repository on GitHub`}
-                          onClick={() => playConsoleSound("press")}
-                        >
-                          <span className="slot-index" aria-hidden="true">
-                            {String(index + 1).padStart(2, "0")}
-                          </span>
-                          <span className="slot-body">
-                            <strong>{project.name}</strong>
-                            <small>{project.type}</small>
-                          </span>
-                          <span className="slot-go" aria-hidden="true">
-                            {isGithub && <GithubMark className="slot-go-icon" />}
-                            <span className="slot-go-label">{isGithub ? "GITHUB" : "OPEN"} ↗</span>
-                          </span>
-                        </a>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {view === "find" && (
-                <div className="find-screen">
-                  <p className="screen-kicker">TRACK ME DOWN // {platforms.length} CHANNELS</p>
-                  <h2>
-                    Find Me
-                    <br />
-                    Here.
-                  </h2>
-                  <FindMeCarousel items={platforms} />
-                </div>
-              )}
-              {view === "contact" && (
-                <>
-                  <p className="screen-kicker">OPEN CHANNEL</p>
-                  <h2>
-                    Let’s make
-                    <br />
-                    something.
-                  </h2>
-                  <a
-                    className={`contact-link${emailCopied ? " is-copied" : ""}`}
-                    href={`mailto:${CONTACT_EMAIL}?subject=Let%27s%20build%20something`}
-                    aria-label={`Email ${CONTACT_EMAIL}. Opens your mail app and copies the address.`}
-                    onClick={() => {
-                      playConsoleSound("press");
-                      void (async () => {
-                        try {
-                          await navigator.clipboard.writeText(CONTACT_EMAIL);
-                          setEmailCopied(true);
-                          if (copyTimer.current) clearTimeout(copyTimer.current);
-                          copyTimer.current = setTimeout(() => setEmailCopied(false), 2200);
-                        } catch {}
-                      })();
-                    }}
-                  >
-                    {emailCopied ? "EMAIL COPIED ✓" : "ARDIANSYAHSATRIO@GMAIL.COM ↗"}
-                  </a>
-                </>
-              )}
+                      </div>
+                    )}
+
+                    {panel === "vault" && (
+                      <div className="project-screen">
+                        <p className="screen-kicker">
+                          INVENTORY // QUEST ITEMS {projects.length}/8
+                        </p>
+                        <h2>
+                          Project
+                          <br />
+                          Vault.
+                        </h2>
+                        <div className="inventory-grid" role="list" aria-label="Project inventory">
+                          {projects.map((project, index) => {
+                            const isGithub = /github\.com/i.test(project.href);
+                            return (
+                              <a
+                                key={project.name}
+                                role="listitem"
+                                className="inventory-slot"
+                                href={project.href}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                aria-label={`Open ${project.name} repository on GitHub`}
+                                onClick={() => playConsoleSound("press")}
+                              >
+                                <span className="slot-index" aria-hidden="true">
+                                  {String(index + 1).padStart(2, "0")}
+                                </span>
+                                <span className="slot-body">
+                                  <strong>{project.name}</strong>
+                                  <small>{project.type}</small>
+                                </span>
+                                <span className="slot-go" aria-hidden="true">
+                                  {isGithub && <GithubMark className="slot-go-icon" />}
+                                  <span className="slot-go-label">
+                                    {isGithub ? "GITHUB" : "OPEN"} ↗
+                                  </span>
+                                </span>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <Dialog.Title className="sr-only">
+                      {panel === "bio"
+                        ? "About Me"
+                        : panel === "vault"
+                          ? "Project Vault"
+                          : "Tech Tree"}
+                    </Dialog.Title>
+                  </Dialog.Content>
+                </Dialog.Portal>
+              </Dialog.Root>
             </div>
 
             <div className="screen-footer">
@@ -1166,11 +1228,11 @@ function Index() {
                 SIG-STRENGTH: 98%
               </span>
               <strong>
-                {view === "bio"
+                {panel === "bio"
                   ? "SYS_BIO"
-                  : view === "vault"
+                  : panel === "vault"
                     ? "SYS_VAULT"
-                    : view === "tree"
+                    : panel === "tree"
                       ? "SYS_TECHTREE"
                       : view === "about" && !menuDetail
                         ? `SELECT ${menuIndex + 1}/4`
@@ -1187,6 +1249,7 @@ function Index() {
                 ▲
               </span>
               <div
+                ref={dialRef}
                 className="jog-dial"
                 role="slider"
                 aria-label="Scroll up or down to navigate screens"
@@ -1201,14 +1264,11 @@ function Index() {
                 onPointerCancel={finishDial}
                 onWheel={wheelDial}
                 onKeyDown={(event) => {
-                  if (event.key === "ArrowDown") turnDial(1);
-                  if (event.key === "ArrowUp") turnDial(-1);
+                  if (event.key === "ArrowDown") keyTurn(1);
+                  if (event.key === "ArrowUp") keyTurn(-1);
                 }}
               >
-                <span
-                  className={cn("jog-ridges", dragging && "is-dragging")}
-                  style={{ backgroundPositionY: `${ridgeOffset}px` }}
-                />
+                <span className="jog-ridges" style={{ backgroundPositionY: `${ridgeOffset}px` }} />
               </div>
               <span className="jog-arrow" aria-hidden="true">
                 ▼
