@@ -40,3 +40,8 @@ Thumbs.db
 .cache/
 .eslintcache
 .vercel
+
+# --- Temp / headless-debug artifacts ---
+.tmp/
+.tmpci/
+*.pid.txt
