@@ -228,21 +228,6 @@
   }
 }
 
-@keyframes screen-ignite {
-  0% {
-    opacity: 0.7;
-  }
-  46% {
-    opacity: 0.14;
-  }
-  70% {
-    opacity: 0.03;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
 @keyframes rise-in {
   from {
     opacity: 0;
@@ -3269,23 +3254,6 @@ body.stage-dark {
 
 .screen-panel[data-state="closed"] {
   animation: panel-out 0.2s ease-in both;
-}
-
-.screen-content::after,
-.screen-panel::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 6;
-  pointer-events: none;
-  background: white;
-  mix-blend-mode: plus-lighter;
-  will-change: opacity;
-  animation: screen-ignite 0.66s cubic-bezier(0.14, 0.88, 0.2, 1) both;
-}
-
-.screen-panel[data-state="closed"]::after {
-  display: none;
 }
 
 .screen-panel h1,
