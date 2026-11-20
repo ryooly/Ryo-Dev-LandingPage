@@ -143,7 +143,7 @@ Made by **Satrio "Ryo" Ardiansyah** — links below are also wired into the site
 
 [![Email](https://img.shields.io/badge/Email-d5e3cf?style=for-the-badge&logo=gmail&logoColor=cf4b3b&color=1d3a2a)](mailto:ardiansyahhsatrio@gmail.com)
 [![GitHub](https://img.shields.io/badge/GitHub-ryooly-1d3a2a?style=for-the-badge&logo=github&logoColor=d5e3cf)](https://github.com/ryooly)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-satrio--a-1d3a2a?style=for-the-badge&logo=linkedin&logoColor=d5e3cf)](https://www.linkedin.com/in/satrio-a-84445a335)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-satrio--a-1d3a2a?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/satrio-a-84445a335)
 [![X](https://img.shields.io/badge/X-ryollie-1d3a2a?style=for-the-badge&logo=x&logoColor=d5e3cf)](https://x.com/ryollie)
 
 ---
