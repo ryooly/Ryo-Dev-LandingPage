@@ -882,7 +882,7 @@ function Index() {
                     <div className="profile-body">
                       <div className="character-box" aria-label="Character portrait">
                         <span className="character-sprite" aria-hidden="true">
-                          👾
+                          <img src="/duck.png" alt="duck mascot" />
                         </span>
                       </div>
                       <dl className="stat-list">
