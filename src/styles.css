@@ -1328,9 +1328,16 @@ body.stage-dark {
   }
 }
 .character-sprite {
-  font-size: clamp(2.4rem, 7vw, 3.6rem);
+  width: clamp(8rem, 26vw, 12rem);
+  height: clamp(8rem, 26vw, 12rem);
   line-height: 1;
   animation: sprite-idle 2.8s steps(2, end) infinite;
+}
+.character-sprite img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 @keyframes sprite-idle {
   0%,
