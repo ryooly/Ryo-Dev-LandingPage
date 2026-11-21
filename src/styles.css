@@ -841,7 +841,7 @@ body.stage-dark {
   letter-spacing: 0;
   font-weight: 700;
   text-transform: uppercase;
-  text-shadow: 2px 2px 0 color-mix(in oklab, var(--screen-glow) 38%, transparent);
+  text-shadow: none;
 }
 @utility screen-copy {
   max-width: 25rem;
@@ -1242,6 +1242,25 @@ body.stage-dark {
   background: var(--screen-glow);
   color: var(--console-screen-ink);
   box-shadow: 3px 3px 0 var(--console-screen-ink);
+}
+.screen-menu button.is-talk-action {
+  border-color: color-mix(in oklab, var(--console-screen-ink) 70%, transparent);
+  background: color-mix(in oklab, var(--screen-glow) 20%, transparent);
+}
+.screen-menu button.is-talk-action:not(.is-active) {
+  border-style: dashed;
+}
+.screen-menu button.is-talk-action .menu-marker {
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  border: none;
+}
+@media (hover: hover) {
+  .screen-menu button.is-talk-action:not(.is-active):hover {
+    border-style: solid;
+    border-color: var(--console-screen-ink);
+    background: color-mix(in oklab, var(--screen-glow) 55%, transparent);
+  }
 }
 .screen-menu button.is-active .menu-marker {
   background: currentColor;
@@ -2289,6 +2308,137 @@ body.stage-dark {
   vertical-align: -0.06em;
   transition: translate 0.12s ease;
 }
+.talk-screen {
+  display: contents;
+}
+.talk-screen .screen-kicker {
+  animation: channel-blink 2.4s ease-in-out infinite;
+}
+.talk-screen h2 {
+  font-size: clamp(1.35rem, 4.5vw, 2.35rem);
+  animation: rise-in 0.42s cubic-bezier(0.2, 0.9, 0.3, 1) 0.06s backwards;
+}
+.talk-screen .screen-copy {
+  animation: rise-in 0.42s cubic-bezier(0.2, 0.9, 0.3, 1) 0.12s backwards;
+  max-width: 42rem;
+}
+.interviewer-wrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+  animation: rise-in 0.42s cubic-bezier(0.2, 0.9, 0.3, 1) 0.2s backwards;
+}
+.interviewer-wrap img {
+  max-width: 220px;
+  height: auto;
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.interviewer-wrap.is-speaking img {
+  animation: interviewer-talk 0.35s steps(2, start) infinite;
+}
+@keyframes interviewer-talk {
+  50% {
+    transform: scale(1.02);
+    filter: brightness(1.15);
+  }
+}
+.voice-indicator {
+  position: absolute;
+  top: 0.5rem;
+  right: 1rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+}
+.voice-indicator.recording {
+  background: var(--screen-alert, #ef4444);
+  animation: indicator-pulse 1s ease-in-out infinite alternate;
+}
+.voice-indicator.speaking {
+  background: var(--screen-glow);
+  animation: indicator-pulse 0.5s ease-in-out infinite alternate;
+}
+@keyframes indicator-pulse {
+  from {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+.talk-live-box {
+  margin-top: 0.75rem;
+  border: 1px dashed color-mix(in oklab, var(--console-screen-ink) 35%, transparent);
+  background: color-mix(in oklab, var(--screen-glow) 10%, transparent);
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-screen-body, monospace);
+  font-size: clamp(0.65rem, 1.8vw, 0.8rem);
+  line-height: 1.4;
+  max-width: 24rem;
+  margin-inline: auto;
+  border-radius: 0.35rem;
+}
+.talk-label {
+  font-family: var(--font-pixel);
+  font-size: 0.65rem;
+  margin-right: 0.35rem;
+  opacity: 0.8;
+}
+.talk-transcript {
+  margin: 0 0 0.3rem 0;
+  color: var(--console-screen-ink);
+}
+.talk-response {
+  margin: 0;
+  color: var(--screen-glow);
+}
+.talk-hint {
+  margin: 0;
+  font-style: italic;
+  opacity: 0.7;
+}
+.talk-error {
+  margin-top: 0.5rem;
+  color: var(--screen-alert, #ef4444);
+  font-size: 0.75rem;
+  font-family: var(--font-pixel);
+  text-align: center;
+}
+.talk-error-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.talk-mic-prompt {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.4rem;
+}
+.talk-mic-btn {
+  font-family: var(--font-pixel);
+  font-size: clamp(0.6rem, 1.8vw, 0.75rem);
+  padding: 0.4rem 0.8rem;
+  border: 2px solid var(--console-screen-ink);
+  background: var(--screen-glow);
+  color: var(--console-screen-ink);
+  box-shadow: 2px 2px 0 var(--console-screen-ink);
+  cursor: pointer;
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+.talk-mic-btn:hover {
+  filter: brightness(1.15);
+  transform: translate(1px, 1px);
+}
+.talk-mic-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
 @media (hover: hover) {
   .contact-link:hover .contact-link-icon {
     translate: 1px -1px;
@@ -2699,6 +2849,10 @@ body.stage-dark {
   .contact-screen h2,
   .contact-screen .contact-link,
   .contact-link::before,
+  .talk-screen .screen-kicker,
+  .talk-screen h2,
+  .talk-screen .screen-copy,
+  .interviewer-wrap,
   .speaker i,
   .jog-arrow,
   .console-screen.is-denied,
@@ -2896,7 +3050,7 @@ body.stage-dark {
 
 .screen-content h1,
 .screen-content h2 {
-  text-shadow: 0 2px 16px oklch(1 0 0 / 22%);
+  text-shadow: none;
 }
 
 .console-topline {

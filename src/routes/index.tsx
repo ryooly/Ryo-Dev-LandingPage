@@ -22,11 +22,12 @@ import {
   setMuted,
 } from "@/lib/console-sound";
 import { useLenis } from "@/hooks/use-lenis";
+import { useTalkVoiceEngine } from "@/hooks/use-talk-voice-engine";
 import { cn } from "@/lib/utils";
 
-type Screen = "home" | "profile" | "about" | "work" | "find" | "contact";
-type MenuItem = "ABOUT ME" | "PROJECT" | "SKILLS" | "EXIT";
-type MenuDetail = Exclude<MenuItem, "EXIT">;
+type Screen = "home" | "profile" | "about" | "work" | "find" | "talk" | "contact";
+type MenuItem = "ABOUT ME" | "PROJECT" | "SKILLS" | "TALK US";
+type MenuDetail = Exclude<MenuItem, "TALK US">;
 
 const screens: Record<Screen, { number: string; label: string }> = {
   home: { number: "01", label: "HOME" },
@@ -34,9 +35,10 @@ const screens: Record<Screen, { number: string; label: string }> = {
   about: { number: "03", label: "ABOUT" },
   work: { number: "04", label: "SKILLS" },
   find: { number: "05", label: "FIND" },
-  contact: { number: "06", label: "CONTACT" },
+  talk: { number: "06", label: "TALK US" },
+  contact: { number: "07", label: "CONTACT" },
 };
-const TOTAL_SCREENS = 6;
+const TOTAL_SCREENS = 7;
 
 const NOTCH = 30;
 const DRAG_STEP = 24;
@@ -45,7 +47,7 @@ const WHEEL_IDLE = 90;
 
 const STEP_COOLDOWN = 220;
 const LAST_POSITION = 8;
-const menuItems: MenuItem[] = ["ABOUT ME", "PROJECT", "SKILLS", "EXIT"];
+const menuItems: MenuItem[] = ["ABOUT ME", "PROJECT", "SKILLS", "TALK US"];
 
 const TOUCH_ME_URL = "https://www.linkedin.com/in/satrio-a-84445a335";
 
@@ -474,6 +476,7 @@ function Index() {
   const [bioOpen, setBioOpen] = useState(false);
   const [vault, setVault] = useState(false);
   const [tree, setTree] = useState(false);
+  const [talk, setTalk] = useState(false);
 
   const [screenNode, setScreenNode] = useState<HTMLDivElement | null>(null);
   const [panelNode, setPanelNode] = useState<HTMLDivElement | null>(null);
@@ -573,10 +576,19 @@ function Index() {
         ? "tree"
         : null;
 
-  const view: Screen = screen;
+  const view: Screen = talk ? "talk" : screen;
+
+  const {
+    status: voiceStatus,
+    transcript: voiceTranscript,
+    response: voiceResponse,
+    errorMessage: voiceError,
+    micPermissionGranted,
+    requestMicAccess,
+  } = useTalkVoiceEngine({ active: view === "talk" });
 
   const canContinue = view === "about" && !menuDetail && panel === null;
-  const canBack = !!menuDetail || panel !== null;
+  const canBack = !!menuDetail || panel !== null || view === "talk";
 
   const nudge = () => {
     playConsoleSound("deny");
@@ -592,6 +604,7 @@ function Index() {
     setBioOpen(false);
     setVault(false);
     setTree(false);
+    setTalk(false);
     setRidgeOffset(boundedPosition * NOTCH);
   };
 
@@ -623,6 +636,7 @@ function Index() {
       setBioOpen(false);
       setVault(false);
       setTree(false);
+      setTalk(false);
       return nextPosition;
     });
   };
@@ -726,8 +740,12 @@ function Index() {
   const selectMenuItem = () => {
     const selectedItem = menuItems[menuIndex];
     if (!selectedItem) return;
-    if (selectedItem === "EXIT") {
-      goToPosition(0);
+    if (selectedItem === "TALK US") {
+      playConsoleSound("open");
+      setBioOpen(false);
+      setVault(false);
+      setTree(false);
+      setTalk(true);
       return;
     }
     if (selectedItem === "PROJECT") {
@@ -959,7 +977,10 @@ function Index() {
                         {menuItems.map((item, index) => (
                           <button
                             key={item}
-                            className={index === menuIndex ? "is-active" : undefined}
+                            className={cn(
+                              index === menuIndex && "is-active",
+                              item === "TALK US" && "is-talk-action",
+                            )}
                             type="button"
                             role="option"
                             aria-selected={index === menuIndex}
@@ -986,7 +1007,11 @@ function Index() {
                                 return;
                               }
 
-                              goToPosition(0);
+                              playConsoleSound("open");
+                              setBioOpen(false);
+                              setVault(false);
+                              setTree(false);
+                              setTalk(true);
                             }}
                           >
                             <span className="menu-marker" aria-hidden="true" />
@@ -1052,6 +1077,87 @@ function Index() {
                         </>
                       )}
                     </a>
+                  </div>
+                )}
+                {view === "talk" && (
+                  <div className="talk-screen">
+                    <p className="screen-kicker">
+                      {voiceStatus === "connecting"
+                        ? "VOICE_LINK // CONNECTING..."
+                        : voiceStatus === "recording"
+                          ? "VOICE_LINK // LISTENING (SPEAK NOW)"
+                          : voiceStatus === "processing" || voiceStatus === "transcribing"
+                            ? "VOICE_LINK // PROCESSING AUDIO..."
+                            : voiceStatus === "thinking"
+                              ? "VOICE_LINK // AI THINKING..."
+                              : voiceStatus === "speaking"
+                                ? "VOICE_LINK // TRANSMITTING VOICE..."
+                                : voiceStatus === "error"
+                                  ? "VOICE_LINK // OFFLINE"
+                                  : "VOICE_LINK // STANDBY"}
+                    </p>
+                    <h2>
+                      Let’s
+                      <br />
+                      talk.
+                    </h2>
+                    <div className={cn("interviewer-wrap", voiceStatus === "speaking" && "is-speaking")}>
+                      <img src="/interviewer.png" alt="interviewer" />
+                      {voiceStatus === "recording" && <span className="voice-indicator recording" />}
+                      {voiceStatus === "speaking" && <span className="voice-indicator speaking" />}
+                    </div>
+
+                    {voiceError ? (
+                      <div className="talk-error-wrap">
+                        <p className="talk-error">{voiceError}</p>
+                        <button
+                          type="button"
+                          className="talk-mic-btn"
+                          onClick={() => {
+                            playConsoleSound("press");
+                            requestMicAccess();
+                          }}
+                        >
+                          ALLOW MICROPHONE ACCESS
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="talk-live-box">
+                        {!micPermissionGranted && (
+                          <div className="talk-mic-prompt">
+                            <button
+                              type="button"
+                              className="talk-mic-btn"
+                              onClick={() => {
+                                playConsoleSound("press");
+                                requestMicAccess();
+                              }}
+                            >
+                              START MICROPHONE
+                            </button>
+                          </div>
+                        )}
+                        {voiceTranscript && (
+                          <p className="talk-transcript">
+                            <span className="talk-label">YOU:</span> {voiceTranscript}
+                          </p>
+                        )}
+                        {voiceResponse && (
+                          <p className="talk-response">
+                            <span className="talk-label">AI:</span> {voiceResponse}
+                          </p>
+                        )}
+                        {micPermissionGranted && !voiceTranscript && !voiceResponse && (
+                          <p className="talk-hint">
+                            {voiceStatus === "recording"
+                              ? "• Microphone active. Speak to interact..."
+                              : voiceStatus === "connecting"
+                                ? "Connecting to backend engine..."
+                                : "Ready."}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1321,6 +1427,10 @@ function Index() {
                   aria-disabled={!canBack}
                   onClick={() => {
                     playConsoleSound("close");
+                    if (view === "talk") {
+                      setTalk(false);
+                      return;
+                    }
                     if (bioOpen) {
                       setBioOpen(false);
                       return;
